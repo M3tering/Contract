@@ -6,10 +6,10 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contr
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/token/ERC721/IERC721.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/token/ERC20/IERC20.sol";
 
-import "./IM3tering.sol";
+import "./IProtocol.sol";
 
 /// @custom:security-contact info@whynotswitch.com
-abstract contract M3tering is IM3tering, Pausable, AccessControl {
+abstract contract Protocol is IProtocol, Pausable, AccessControl {
     mapping(uint256 => State) public states;
     mapping(address => uint256) public revenues;
 
