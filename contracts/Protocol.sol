@@ -6,12 +6,13 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contr
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/token/ERC721/IERC721.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/token/ERC20/IERC20.sol";
 
-import "./IProtocol.sol";
+import "./interfaces/IProtocol.sol";
 
 /// @custom:security-contact info@whynotswitch.com
-abstract contract Protocol is IProtocol, Pausable, AccessControl {
+contract Protocol is IProtocol, Pausable, AccessControl {
     mapping(uint256 => State) public states;
     mapping(address => uint256) public revenues;
+    mapping(address => bool) public strategyLib;
 
     IERC20 public constant DAI =
         IERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b); // ioDAI
@@ -53,6 +54,10 @@ abstract contract Protocol is IProtocol, Pausable, AccessControl {
         states[tokenId].tariff = uint248(tariff);
     }
 
+    function _setStrategyLib(address libAddress, bool state) external {
+        strategyLib[libAddress] = state;
+    }
+
     function pay(uint256 tokenId, uint256 amount) external whenNotPaused {
         if (!DAI.transferFrom(msg.sender, address(this), amount))
             revert TransferError();
@@ -68,6 +73,16 @@ abstract contract Protocol is IProtocol, Pausable, AccessControl {
             msg.sender,
             block.timestamp
         );
+    }
+
+    function claim(address libAddress, address receiver, uint256 outputAmount, uint256 deadline) external whenNotPaused {
+        if (strategyLib[libAddress] == false) revert BadStrategy();
+        uint256 revenueAmount = revenues[msg.sender];
+        if (revenueAmount < 1) revert InputIsZero();
+        revenues[msg.sender] = 0;
+
+        ClaimStrategy(libAddress).claim(revenueAmount, receiver, outputAmount, deadline);
+        emit Claim(msg.sender, revenueAmount, block.timestamp);
     }
 
     function stateOf(uint256 tokenId) external view returns (bool) {
