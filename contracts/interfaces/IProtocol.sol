@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.19;
+
+interface ClaimStrategy {
+  function claim(uint256 revenueAmount, address receiver, uint256 outputAmount, uint256 deadline) external;
+}
+
 
 interface IProtocol {
+    error BadStrategy();
     error InputIsZero();
     error ZeroAddress();
     error Unauthorized();
@@ -40,7 +46,11 @@ interface IProtocol {
 
     function _setTariff(uint256 tokenId, uint256 tariff) external;
 
+    function _setStrategyLib(address libAddress, bool state) external;
+
     function pay(uint256 tokenId, uint256 amount) external;
+
+    function claim(address libAddress, address receiver, uint256 outputAmount, uint256 deadline) external;
 
     function stateOf(uint256 tokenId) external view returns (bool);
 
