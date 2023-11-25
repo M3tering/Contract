@@ -7,12 +7,13 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contr
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IProtocol.sol";
+import "./interfaces/IStrategy.sol";
 
 /// @custom:security-contact info@whynotswitch.com
 contract Protocol is IProtocol, Pausable, AccessControl {
     mapping(uint256 => State) public states;
     mapping(address => uint256) public revenues;
-    mapping(address => bool) public strategyLib;
+    mapping(address => bool) public strategy;
 
     IERC20 public constant DAI =
         IERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b); // ioDAI
@@ -20,7 +21,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         IERC721(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b); // TODO: M3ter Address
 
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 public constant CURATOR_ROLE = keccak256("CURATOR_ROLE");
     bytes32 public constant W3BSTREAM_ROLE = keccak256("W3BSTREAM_ROLE");
     address public feeAddress;
 
@@ -54,8 +55,11 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         states[tokenId].tariff = uint248(tariff);
     }
 
-    function _setStrategyLib(address libAddress, bool state) external {
-        strategyLib[libAddress] = state;
+    function _curateStrategy(
+        address strategyAddress,
+        bool state
+    ) external onlyRole(CURATOR_ROLE) {
+        strategy[strategyAddress] = state;
     }
 
     function pay(uint256 tokenId, uint256 amount) external whenNotPaused {
@@ -75,13 +79,22 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         );
     }
 
-    function claim(address libAddress, address receiver, uint256 outputAmount, uint256 deadline) external whenNotPaused {
-        if (strategyLib[libAddress] == false) revert BadStrategy();
+    function claim(
+        address strategyAddress,
+        address receiver,
+        uint256 outputAmount
+    ) external whenNotPaused {
+        if (strategy[strategyAddress] == false) revert BadStrategy();
         uint256 revenueAmount = revenues[msg.sender];
         if (revenueAmount < 1) revert InputIsZero();
+        uint256 preBalance = DAI.balanceOf(address(this));
         revenues[msg.sender] = 0;
 
-        ClaimStrategy(libAddress).claim(revenueAmount, receiver, outputAmount, deadline);
+        if (!DAI.approve(strategyAddress, revenueAmount)) revert Unauthorized();
+        IStrategy(strategyAddress).claim(revenueAmount, receiver, outputAmount);
+
+        uint256 postBalance = DAI.balanceOf(address(this));
+        if (postBalance != preBalance - revenueAmount) revert TransferError();
         emit Claim(msg.sender, revenueAmount, block.timestamp);
     }
 
