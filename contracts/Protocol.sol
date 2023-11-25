@@ -78,8 +78,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     function claim(
         address libAddress,
         address receiver,
-        uint256 outputAmount,
-        uint256 deadline
+        uint256 outputAmount
     ) external whenNotPaused {
         if (strategyLib[libAddress] == false) revert BadStrategy();
         uint256 revenueAmount = revenues[msg.sender];
@@ -91,8 +90,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         Strategy(libAddress).claim(
             revenueAmount,
             receiver,
-            outputAmount,
-            deadline
+            outputAmount
         );
 
         uint256 postBalance = DAI.balanceOf(address(this));

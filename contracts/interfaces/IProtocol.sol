@@ -5,8 +5,7 @@ interface Strategy {
     function claim(
         uint256 revenueAmount,
         address receiver,
-        uint256 outputAmount,
-        uint256 deadline
+        uint256 outputAmount
     ) external;
 }
 
@@ -57,8 +56,7 @@ interface IProtocol {
     function claim(
         address libAddress,
         address receiver,
-        uint256 outputAmount,
-        uint256 deadline
+        uint256 outputAmount
     ) external;
 
     function stateOf(uint256 tokenId) external view returns (bool);
