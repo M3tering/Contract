@@ -74,7 +74,13 @@ contract Protocol is IProtocol, Pausable, AccessControl {
             block.timestamp
         );
     }
-    function claim(address libAddress, address receiver, uint256 outputAmount, uint256 deadline) external whenNotPaused {
+
+    function claim(
+        address libAddress,
+        address receiver,
+        uint256 outputAmount,
+        uint256 deadline
+    ) external whenNotPaused {
         if (strategyLib[libAddress] == false) revert BadStrategy();
         uint256 revenueAmount = revenues[msg.sender];
         if (revenueAmount < 1) revert InputIsZero();
@@ -82,7 +88,12 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         revenues[msg.sender] = 0;
 
         if (!DAI.approve(libAddress, revenueAmount)) revert Unauthorized();
-        Strategy(libAddress).claim(revenueAmount, receiver, outputAmount, deadline);
+        Strategy(libAddress).claim(
+            revenueAmount,
+            receiver,
+            outputAmount,
+            deadline
+        );
 
         uint256 postBalance = DAI.balanceOf(address(this));
         if (postBalance != preBalance - revenueAmount) revert TransferError();
