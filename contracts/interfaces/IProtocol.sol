@@ -2,9 +2,13 @@
 pragma solidity ^0.8.19;
 
 interface Strategy {
-  function claim(uint256 revenueAmount, address receiver, uint256 outputAmount, uint256 deadline) external;
+    function claim(
+        uint256 revenueAmount,
+        address receiver,
+        uint256 outputAmount,
+        uint256 deadline
+    ) external;
 }
-
 
 interface IProtocol {
     error BadStrategy();
@@ -50,7 +54,12 @@ interface IProtocol {
 
     function pay(uint256 tokenId, uint256 amount) external;
 
-    function claim(address libAddress, address receiver, uint256 outputAmount, uint256 deadline) external;
+    function claim(
+        address libAddress,
+        address receiver,
+        uint256 outputAmount,
+        uint256 deadline
+    ) external;
 
     function stateOf(uint256 tokenId) external view returns (bool);
 
