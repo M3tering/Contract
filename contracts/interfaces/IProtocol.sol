@@ -41,7 +41,7 @@ interface IProtocol {
 
     function _setTariff(uint256 tokenId, uint256 tariff) external;
 
-    function _setStrategy(address strategyAddress, bool state) external;
+    function _curateStrategy(address strategyAddress, bool state) external;
 
     function pay(uint256 tokenId, uint256 amount) external;
 

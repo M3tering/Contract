@@ -21,7 +21,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         IERC721(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b); // TODO: M3ter Address
 
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 public constant CURATOR_ROLE = keccak256("CURATOR_ROLE");
     bytes32 public constant W3BSTREAM_ROLE = keccak256("W3BSTREAM_ROLE");
     address public feeAddress;
 
@@ -55,7 +55,10 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         states[tokenId].tariff = uint248(tariff);
     }
 
-    function _setStrategy(address strategyAddress, bool state) external {
+    function _curateStrategy(
+        address strategyAddress,
+        bool state
+    ) external onlyRole(CURATOR_ROLE) {
         strategy[strategyAddress] = state;
     }
 
