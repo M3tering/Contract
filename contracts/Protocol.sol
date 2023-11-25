@@ -7,12 +7,13 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contr
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IProtocol.sol";
+import "./interfaces/IStrategy.sol";
 
 /// @custom:security-contact info@whynotswitch.com
 contract Protocol is IProtocol, Pausable, AccessControl {
     mapping(uint256 => State) public states;
     mapping(address => uint256) public revenues;
-    mapping(address => bool) public strategyLib;
+    mapping(address => bool) public strategy;
 
     IERC20 public constant DAI =
         IERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b); // ioDAI
@@ -54,8 +55,8 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         states[tokenId].tariff = uint248(tariff);
     }
 
-    function _setStrategyLib(address libAddress, bool state) external {
-        strategyLib[libAddress] = state;
+    function _setStrategy(address strategyAddress, bool state) external {
+        strategy[strategyAddress] = state;
     }
 
     function pay(uint256 tokenId, uint256 amount) external whenNotPaused {
@@ -76,22 +77,18 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     }
 
     function claim(
-        address libAddress,
+        address strategyAddress,
         address receiver,
         uint256 outputAmount
     ) external whenNotPaused {
-        if (strategyLib[libAddress] == false) revert BadStrategy();
+        if (strategy[strategyAddress] == false) revert BadStrategy();
         uint256 revenueAmount = revenues[msg.sender];
         if (revenueAmount < 1) revert InputIsZero();
         uint256 preBalance = DAI.balanceOf(address(this));
         revenues[msg.sender] = 0;
 
-        if (!DAI.approve(libAddress, revenueAmount)) revert Unauthorized();
-        Strategy(libAddress).claim(
-            revenueAmount,
-            receiver,
-            outputAmount
-        );
+        if (!DAI.approve(strategyAddress, revenueAmount)) revert Unauthorized();
+        IStrategy(strategyAddress).claim(revenueAmount, receiver, outputAmount);
 
         uint256 postBalance = DAI.balanceOf(address(this));
         if (postBalance != preBalance - revenueAmount) revert TransferError();
