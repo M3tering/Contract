@@ -31,6 +31,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(W3BSTREAM_ROLE, msg.sender);
+        _grantRole(CURATOR_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
         feeAddress = msg.sender;
     }
@@ -81,8 +82,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
 
     function claim(
         address strategyAddress,
-        address receiver,
-        uint256 outputAmount
+        bytes calldata data
     ) external whenNotPaused {
         if (strategy[strategyAddress] == false) revert BadStrategy();
         uint256 revenueAmount = revenues[msg.sender];
@@ -91,7 +91,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         revenues[msg.sender] = 0;
 
         if (!DAI.approve(strategyAddress, revenueAmount)) revert Unauthorized();
-        IStrategy(strategyAddress).claim(revenueAmount, receiver, outputAmount);
+        IStrategy(strategyAddress).claim(revenueAmount, data);
 
         uint256 postBalance = DAI.balanceOf(address(this));
         if (postBalance != preBalance - revenueAmount) revert TransferError();

@@ -45,11 +45,7 @@ interface IProtocol {
 
     function pay(uint256 tokenId, uint256 amount) external;
 
-    function claim(
-        address strategyAddress,
-        address receiver,
-        uint256 outputAmount
-    ) external;
+    function claim(address strategyAddress, bytes calldata data) external;
 
     function stateOf(uint256 tokenId) external view returns (bool);
 
