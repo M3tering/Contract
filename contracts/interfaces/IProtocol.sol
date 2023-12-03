@@ -31,7 +31,7 @@ interface IProtocol {
 
     struct State {
         // int:tariff = float:$$ *10^3
-        uint248 tariff;
+        uint256 tariff;
         bool state;
     }
 

@@ -54,7 +54,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     function _setTariff(uint256 tokenId, uint256 tariff) external {
         if (msg.sender != _ownerOf(tokenId)) revert Unauthorized();
         if (tariff < 1) revert InputIsZero();
-        states[tokenId].tariff = uint248(tariff);
+        states[tokenId].tariff = tariff;
     }
 
     function _curateStrategy(
