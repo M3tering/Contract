@@ -47,6 +47,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     function _setFeeAddress(
         address otherAddress
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (otherAddress == address(0)) revert ZeroAddress();
         feeAddress = otherAddress;
     }
 
