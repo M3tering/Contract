@@ -1,122 +1,96 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
-
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/security/Pausable.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/access/AccessControl.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/token/ERC721/IERC721.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.3/contracts/token/ERC20/IERC20.sol";
+pragma solidity ^0.8.24;
 
 import "./interfaces/IProtocol.sol";
 import "./interfaces/IStrategy.sol";
 
+import {UD60x18, ud60x18} from "@prb/math@4.0.2/src/UD60x18.sol";
+import {Pausable} from "@openzeppelin/contracts@5.0.2/utils/Pausable.sol";
+import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
+import {AccessControl} from "@openzeppelin/contracts@5.0.2/access/AccessControl.sol";
+
 /// @custom:security-contact info@whynotswitch.com
 contract Protocol is IProtocol, Pausable, AccessControl {
-    mapping(uint256 => State) public states;
-    mapping(address => uint256) public revenues;
     mapping(address => bool) public strategy;
+    mapping(uint256 => UD60x18) public tariff;
+    mapping(address => uint256) public revenues;
 
-    IERC20 public constant DAI =
-        IERC20(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b); // ioDAI
-    IERC721 public constant M3ter =
-        IERC721(0x1CbAd85Aa66Ff3C12dc84C5881886EEB29C1bb9b); // TODO: M3ter Address
+    IERC20 public constant SDAI = IERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701);
+    IERC721 public constant M3TER = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
 
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant CURATOR_ROLE = keccak256("CURATOR_ROLE");
-    bytes32 public constant W3BSTREAM_ROLE = keccak256("W3BSTREAM_ROLE");
+    UD60x18 public constant DEFAULT_TARIFF = UD60x18.wrap(0.167e18);
+
+    bytes32 public constant PAUSER = keccak256("PAUSER");
+    bytes32 public constant CURATOR = keccak256("CURATOR");
+    bytes32 public constant REGISTRAR = keccak256("REGISTRAR");
     address public feeAddress;
 
     constructor() {
-        if (address(M3ter) == address(0)) revert ZeroAddress();
-        if (address(DAI) == address(0)) revert ZeroAddress();
+        if (address(M3TER) == address(0)) revert ZeroAddress();
+        if (address(SDAI) == address(0)) revert ZeroAddress();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(W3BSTREAM_ROLE, msg.sender);
-        _grantRole(CURATOR_ROLE, msg.sender);
-        _grantRole(PAUSER_ROLE, msg.sender);
+        _grantRole(REGISTRAR, msg.sender);
+        _grantRole(CURATOR, msg.sender);
+        _grantRole(PAUSER, msg.sender);
         feeAddress = msg.sender;
     }
 
-    function _switch(
-        uint256 tokenId,
-        bool state
-    ) external onlyRole(W3BSTREAM_ROLE) {
-        states[tokenId].state = state;
-        emit Switch(tokenId, state, block.timestamp, msg.sender);
+    function _curateStrategy(address strategyAddress, bool state) external onlyRole(CURATOR) {
+        strategy[strategyAddress] = state;
     }
 
-    function _setFeeAddress(
-        address otherAddress
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function _setFeeAddress(address otherAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (otherAddress == address(0)) revert ZeroAddress();
         feeAddress = otherAddress;
     }
 
-    function _setTariff(uint256 tokenId, uint256 tariff) external {
+    function _setTariff(uint256 tokenId, UD60x18 newTariff) external {
         if (msg.sender != _ownerOf(tokenId)) revert Unauthorized();
-        if (tariff < 1) revert InputIsZero();
-        states[tokenId].tariff = tariff;
-    }
-
-    function _curateStrategy(
-        address strategyAddress,
-        bool state
-    ) external onlyRole(CURATOR_ROLE) {
-        strategy[strategyAddress] = state;
+        if (newTariff < ud60x18(1)) revert InputIsZero();
+        tariff[tokenId] = newTariff;
     }
 
     function pay(uint256 tokenId, uint256 amount) external whenNotPaused {
-        if (!DAI.transferFrom(msg.sender, address(this), amount))
-            revert TransferError();
+        if (!SDAI.transferFrom(msg.sender, address(this), amount)) revert TransferError();
 
         uint256 fee = (amount * 3) / 1000;
         revenues[feeAddress] += fee;
         revenues[_ownerOf(tokenId)] += amount - fee;
 
-        emit Revenue(
-            tokenId,
-            amount,
-            tariffOf(tokenId),
-            msg.sender,
-            block.timestamp
-        );
+        emit Revenue(tokenId, amount, tariffOf(tokenId), msg.sender, block.timestamp);
     }
 
-    function claim(
-        address strategyAddress,
-        bytes calldata data
-    ) external whenNotPaused {
+    function claim(address strategyAddress, bytes calldata data) external whenNotPaused {
         if (strategy[strategyAddress] == false) revert BadStrategy();
         uint256 revenueAmount = revenues[msg.sender];
         if (revenueAmount < 1) revert InputIsZero();
-        uint256 preBalance = DAI.balanceOf(address(this));
+        uint256 preBalance = SDAI.balanceOf(address(this));
         revenues[msg.sender] = 0;
 
-        if (!DAI.approve(strategyAddress, revenueAmount)) revert Unauthorized();
+        if (!SDAI.approve(strategyAddress, revenueAmount)) revert Unauthorized();
         IStrategy(strategyAddress).claim(revenueAmount, data);
 
-        uint256 postBalance = DAI.balanceOf(address(this));
+        uint256 postBalance = SDAI.balanceOf(address(this));
         if (postBalance != preBalance - revenueAmount) revert TransferError();
         emit Claim(msg.sender, revenueAmount, block.timestamp);
     }
 
-    function stateOf(uint256 tokenId) external view returns (bool) {
-        return states[tokenId].state;
-    }
-
-    function pause() public onlyRole(PAUSER_ROLE) {
+    function pause() public onlyRole(PAUSER) {
         _pause();
     }
 
-    function unpause() public onlyRole(PAUSER_ROLE) {
+    function unpause() public onlyRole(PAUSER) {
         _unpause();
     }
 
-    function tariffOf(uint256 tokenId) public view returns (uint256) {
-        uint256 tariff = states[tokenId].tariff;
-        return tariff > 0 ? tariff : 1;
+    function tariffOf(uint256 tokenId) public view returns (UD60x18) {
+        UD60x18 _tariff = tariff[tokenId];
+        return _tariff > ud60x18(0) ? _tariff : DEFAULT_TARIFF;
     }
 
     function _ownerOf(uint256 tokenId) internal view returns (address) {
-        return M3ter.ownerOf(tokenId);
+        return M3TER.ownerOf(tokenId);
     }
 }
