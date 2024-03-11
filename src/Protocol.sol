@@ -15,6 +15,8 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     mapping(address => bool) public strategy;
     mapping(uint256 => UD60x18) public tariff;
     mapping(address => uint256) public revenues;
+    mapping(uint256 => string) public token_to_contract;
+    mapping(string => uint256) public contract_to_token;
 
     IERC20 public constant SDAI = IERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701);
     IERC721 public constant M3TER = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
@@ -44,6 +46,12 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     function _setFeeAddress(address otherAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (otherAddress == address(0)) revert ZeroAddress();
         feeAddress = otherAddress;
+    }
+
+    function _setContractId(uint256 tokenId, string memory contractId) external {
+        if (msg.sender != _ownerOf(tokenId)) revert Unauthorized();
+        token_to_contract[tokenId] = contractId;
+        contract_to_token[contractId] = tokenId;
     }
 
     function _setTariff(uint256 tokenId, UD60x18 newTariff) external {

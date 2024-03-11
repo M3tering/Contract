@@ -22,6 +22,8 @@ interface IProtocol {
 
     function _setFeeAddress(address otherAddress) external;
 
+    function _setContractId(uint256 tokenId, string memory contractId) external;
+
     function _setTariff(uint256 tokenId, UD60x18 tariff) external;
 
     function pay(uint256 tokenId, uint256 amount) external;
