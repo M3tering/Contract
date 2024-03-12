@@ -18,9 +18,7 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     mapping(uint256 => string) public token_to_contract;
     mapping(string => uint256) public contract_to_token;
 
-    IERC20 public constant SDAI = IERC20(0xaf204776c7245bF4147c2612BF6e5972Ee483701);
     IERC721 public constant M3TER = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
-
     UD60x18 public constant DEFAULT_TARIFF = UD60x18.wrap(0.167e18);
 
     bytes32 public constant PAUSER = keccak256("PAUSER");
@@ -30,7 +28,6 @@ contract Protocol is IProtocol, Pausable, AccessControl {
 
     constructor() {
         if (address(M3TER) == address(0)) revert ZeroAddress();
-        if (address(SDAI) == address(0)) revert ZeroAddress();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(REGISTRAR, msg.sender);
@@ -60,28 +57,24 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         tariff[tokenId] = newTariff;
     }
 
-    function pay(uint256 tokenId, uint256 amount) external whenNotPaused {
-        if (!SDAI.transferFrom(msg.sender, address(this), amount)) revert TransferError();
-
-        uint256 fee = (amount * 3) / 1000;
+    function pay(uint256 tokenId) payable external whenNotPaused {
+        uint256 fee = (msg.value * 3) / 1000;
         revenues[feeAddress] += fee;
-        revenues[_ownerOf(tokenId)] += amount - fee;
+        revenues[_ownerOf(tokenId)] += msg.value - fee;
 
-        emit Revenue(tokenId, amount, tariffOf(tokenId), msg.sender, block.timestamp);
+        emit Revenue(tokenId, msg.value, tariffOf(tokenId), msg.sender, block.timestamp);
     }
 
     function claim(address strategyAddress, bytes calldata data) external whenNotPaused {
         if (strategy[strategyAddress] == false) revert BadStrategy();
         uint256 revenueAmount = revenues[msg.sender];
         if (revenueAmount < 1) revert InputIsZero();
-        uint256 preBalance = SDAI.balanceOf(address(this));
         revenues[msg.sender] = 0;
 
-        if (!SDAI.approve(strategyAddress, revenueAmount)) revert Unauthorized();
-        IStrategy(strategyAddress).claim(revenueAmount, data);
+        uint256 initialBalance = address(this).balance;
+        IStrategy(strategyAddress).claim{value: revenueAmount}(data);
+        if (address(this).balance != initialBalance - revenueAmount) revert BadClaim();
 
-        uint256 postBalance = SDAI.balanceOf(address(this));
-        if (postBalance != preBalance - revenueAmount) revert TransferError();
         emit Claim(msg.sender, revenueAmount, block.timestamp);
     }
 

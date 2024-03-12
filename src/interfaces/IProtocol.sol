@@ -3,11 +3,11 @@ pragma solidity ^0.8.24;
 
 import {UD60x18} from "@prb/math@4.0.2/src/UD60x18.sol";
 
+error BadClaim();
 error BadStrategy();
 error InputIsZero();
 error ZeroAddress();
 error Unauthorized();
-error TransferError();
 
 interface IProtocol {
     event Switch(uint256 indexed tokenId, bool indexed state, uint256 indexed timestamp, address from);
@@ -26,7 +26,7 @@ interface IProtocol {
 
     function _setTariff(uint256 tokenId, UD60x18 tariff) external;
 
-    function pay(uint256 tokenId, uint256 amount) external;
+    function pay(uint256 tokenId) payable external;
 
     function claim(address strategyAddress, bytes calldata data) external;
 
