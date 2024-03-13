@@ -3,8 +3,6 @@ pragma solidity ^0.8.24;
 
 import "./interfaces/IProtocol.sol";
 import "./interfaces/IStrategy.sol";
-
-import {UD60x18, ud60x18} from "@prb/math@4.0.2/src/UD60x18.sol";
 import {Pausable} from "@openzeppelin/contracts@5.0.2/utils/Pausable.sol";
 import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
@@ -13,13 +11,13 @@ import {AccessControl} from "@openzeppelin/contracts@5.0.2/access/AccessControl.
 /// @custom:security-contact info@whynotswitch.com
 contract Protocol is IProtocol, Pausable, AccessControl {
     mapping(address => bool) public strategy;
-    mapping(uint256 => UD60x18) public tariff;
+    mapping(uint256 => uint256) public tariff;
     mapping(address => uint256) public revenues;
     mapping(uint256 => string) public token_to_contract;
     mapping(string => uint256) public contract_to_token;
 
     IERC721 public constant M3TER = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
-    UD60x18 public constant DEFAULT_TARIFF = UD60x18.wrap(0.167e18);
+    uint256 public constant DEFAULT_TARIFF = 0.167e18;
 
     bytes32 public constant PAUSER = keccak256("PAUSER");
     bytes32 public constant CURATOR = keccak256("CURATOR");
@@ -51,9 +49,9 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         contract_to_token[contractId] = tokenId;
     }
 
-    function _setTariff(uint256 tokenId, UD60x18 newTariff) external {
+    function _setTariff(uint256 tokenId, uint256 newTariff) external {
         if (msg.sender != _ownerOf(tokenId)) revert Unauthorized();
-        if (newTariff < ud60x18(1)) revert InputIsZero();
+        if (newTariff < 1) revert InputIsZero();
         tariff[tokenId] = newTariff;
     }
 
@@ -86,9 +84,9 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         _unpause();
     }
 
-    function tariffOf(uint256 tokenId) public view returns (UD60x18) {
-        UD60x18 _tariff = tariff[tokenId];
-        return _tariff > ud60x18(0) ? _tariff : DEFAULT_TARIFF;
+    function tariffOf(uint256 tokenId) public view returns (uint256) {
+        uint256 _tariff = tariff[tokenId];
+        return _tariff > 0 ? _tariff : DEFAULT_TARIFF;
     }
 
     function _ownerOf(uint256 tokenId) internal view returns (address) {

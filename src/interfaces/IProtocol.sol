@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {UD60x18} from "@prb/math@4.0.2/src/UD60x18.sol";
-
 error BadClaim();
 error BadStrategy();
 error InputIsZero();
@@ -13,7 +11,7 @@ interface IProtocol {
     event Switch(uint256 indexed tokenId, bool indexed state, uint256 indexed timestamp, address from);
 
     event Revenue(
-        uint256 indexed tokenId, uint256 indexed amount, UD60x18 indexed taffif, address from, uint256 timestamp
+        uint256 indexed tokenId, uint256 indexed amount, uint256 indexed taffif, address from, uint256 timestamp
     );
 
     event Claim(address indexed to, uint256 indexed amount, uint256 indexed timestamp);
@@ -24,11 +22,11 @@ interface IProtocol {
 
     function _setContractId(uint256 tokenId, string memory contractId) external;
 
-    function _setTariff(uint256 tokenId, UD60x18 tariff) external;
+    function _setTariff(uint256 tokenId, uint256 tariff) external;
 
     function pay(uint256 tokenId) payable external;
 
     function claim(address strategyAddress, bytes calldata data) external;
 
-    function tariffOf(uint256 tokenId) external view returns (UD60x18);
+    function tariffOf(uint256 tokenId) external view returns (uint256);
 }
