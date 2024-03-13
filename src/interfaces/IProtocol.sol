@@ -8,10 +8,8 @@ error ZeroAddress();
 error Unauthorized();
 
 interface IProtocol {
-    event Switch(uint256 indexed tokenId, bool indexed state, uint256 indexed timestamp, address from);
-
     event Revenue(
-        uint256 indexed tokenId, uint256 indexed amount, uint256 indexed taffif, address from, uint256 timestamp
+        uint256 indexed tokenId, uint256 indexed amount, uint256 indexed tariff, address from, uint256 timestamp
     );
 
     event Claim(address indexed to, uint256 indexed amount, uint256 indexed timestamp);

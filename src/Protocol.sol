@@ -17,8 +17,8 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     mapping(string => uint256) public contract_to_token;
 
     IERC721 public constant M3TER = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
-    uint256 public constant DEFAULT_TARIFF = 0.167e18;
 
+    uint256 public constant DEFAULT_TARIFF = 0.167e18;
     bytes32 public constant PAUSER = keccak256("PAUSER");
     bytes32 public constant CURATOR = keccak256("CURATOR");
     bytes32 public constant REGISTRAR = keccak256("REGISTRAR");
