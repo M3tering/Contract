@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "./interfaces/IProtocol.sol";
-import "./interfaces/IStrategy.sol";
+import "./interfaces/ICLM.sol";
 import {Pausable} from "@openzeppelin/contracts@5.0.2/utils/Pausable.sol";
 import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
@@ -10,7 +10,7 @@ import {AccessControl} from "@openzeppelin/contracts@5.0.2/access/AccessControl.
 
 /// @custom:security-contact info@whynotswitch.com
 contract Protocol is IProtocol, Pausable, AccessControl {
-    mapping(address => bool) public strategy;
+    mapping(address => bool) public modlues;
     mapping(uint256 => uint256) public tariff;
     mapping(address => uint256) public revenues;
     mapping(uint256 => string) public token_to_contract;
@@ -24,18 +24,18 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     bytes32 public constant REGISTRAR = keccak256("REGISTRAR");
     address public feeAddress;
 
-    constructor() {
+    constructor(address feeAccount) {
         if (address(M3TER) == address(0)) revert ZeroAddress();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(REGISTRAR, msg.sender);
         _grantRole(CURATOR, msg.sender);
         _grantRole(PAUSER, msg.sender);
-        feeAddress = msg.sender;
+        feeAddress = feeAccount;
     }
 
-    function _curateStrategy(address strategyAddress, bool state) external onlyRole(CURATOR) {
-        strategy[strategyAddress] = state;
+    function _curateModule(address moduleAddress, bool state) external onlyRole(CURATOR) {
+        modlues[moduleAddress] = state;
     }
 
     function _setFeeAddress(address otherAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -63,14 +63,14 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         emit Revenue(tokenId, msg.value, tariffOf(tokenId), msg.sender, block.timestamp);
     }
 
-    function claim(address strategyAddress, bytes calldata data) external whenNotPaused {
-        if (strategy[strategyAddress] == false) revert BadStrategy();
+    function claim(address moduleAddress, bytes calldata data) external whenNotPaused {
+        if (modlues[moduleAddress] == false) revert BadModule();
         uint256 revenueAmount = revenues[msg.sender];
         if (revenueAmount < 1) revert InputIsZero();
         revenues[msg.sender] = 0;
 
         uint256 initialBalance = address(this).balance;
-        IStrategy(strategyAddress).claim{value: revenueAmount}(data);
+        ICLM(moduleAddress).claim{value: revenueAmount}(data);
         if (address(this).balance != initialBalance - revenueAmount) revert BadClaim();
 
         emit Claim(msg.sender, revenueAmount, block.timestamp);

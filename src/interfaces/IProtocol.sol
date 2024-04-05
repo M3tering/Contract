@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 error BadClaim();
-error BadStrategy();
+error BadModule();
 error InputIsZero();
 error ZeroAddress();
 error Unauthorized();
@@ -14,7 +14,7 @@ interface IProtocol {
 
     event Claim(address indexed to, uint256 indexed amount, uint256 indexed timestamp);
 
-    function _curateStrategy(address strategyAddress, bool state) external;
+    function _curateModule(address CLMAddress, bool state) external;
 
     function _setFeeAddress(address otherAddress) external;
 
@@ -24,7 +24,7 @@ interface IProtocol {
 
     function pay(uint256 tokenId) payable external;
 
-    function claim(address strategyAddress, bytes calldata data) external;
+    function claim(address CLMAddress, bytes calldata data) external;
 
     function tariffOf(uint256 tokenId) external view returns (uint256);
 }
