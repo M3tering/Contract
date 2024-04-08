@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./interfaces/IProtocol.sol";
 import "./interfaces/ICLM.sol";
+import "./interfaces/IProtocol.sol";
+import "./interfaces/IERC6551Registry.sol";
 import {Pausable} from "@openzeppelin/contracts@5.0.2/utils/Pausable.sol";
 import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
@@ -13,20 +14,22 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     mapping(address => bool) public modlues;
     mapping(uint256 => uint256) public tariff;
     mapping(address => uint256) public revenues;
-    mapping(uint256 => string) public token_to_contract;
-    mapping(string => uint256) public contract_to_token;
-
-    IERC721 public constant M3TER = IERC721(0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C); // TODO: M3ter Address
+    mapping(uint256 => string) public contractByToken;
+    mapping(string => uint256) public tokenByContract;
 
     uint256 public constant DEFAULT_TARIFF = 0.06e18;
     bytes32 public constant PAUSER = keccak256("PAUSER");
     bytes32 public constant CURATOR = keccak256("CURATOR");
     bytes32 public constant REGISTRAR = keccak256("REGISTRAR");
+    uint256 public constant M3TER_ACCOUNT_SALT = uint256(keccak256("M3tering"));
+
+    address public constant M3TER = 0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C; // TODO: M3ter Address
+    address public constant ERC6551REGISTRY = 0x000000006551c19487814612e58FE06813775758;
+    address public constant ERC6551IMPLEMENTATION = 0xf52d861E8d057bF7685e5C9462571dFf236249cF;
     address public feeAddress;
 
     constructor(address feeAccount) {
         if (address(M3TER) == address(0)) revert ZeroAddress();
-
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(REGISTRAR, msg.sender);
         _grantRole(CURATOR, msg.sender);
@@ -44,22 +47,21 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     }
 
     function _setContractId(uint256 tokenId, string memory contractId) external {
-        if (msg.sender != _ownerOf(tokenId)) revert Unauthorized();
-        token_to_contract[tokenId] = contractId;
-        contract_to_token[contractId] = tokenId;
+        if (msg.sender != m3terAccount(tokenId)) revert Unauthorized();
+        contractByToken[tokenId] = contractId;
+        tokenByContract[contractId] = tokenId;
     }
 
     function _setTariff(uint256 tokenId, uint256 newTariff) external {
-        if (msg.sender != _ownerOf(tokenId)) revert Unauthorized();
+        if (msg.sender != m3terAccount(tokenId)) revert Unauthorized();
         if (newTariff < 1) revert InputIsZero();
         tariff[tokenId] = newTariff;
     }
 
-    function pay(uint256 tokenId) payable external whenNotPaused {
+    function pay(uint256 tokenId) external payable whenNotPaused {
         uint256 fee = (msg.value * 3) / 1000;
         revenues[feeAddress] += fee;
-        revenues[_ownerOf(tokenId)] += msg.value - fee;
-
+        revenues[m3terAccount(tokenId)] += msg.value - fee;
         emit Revenue(tokenId, msg.value, tariffOf(tokenId), msg.sender, block.timestamp);
     }
 
@@ -71,8 +73,9 @@ contract Protocol is IProtocol, Pausable, AccessControl {
 
         uint256 initialBalance = address(this).balance;
         ICLM(moduleAddress).claim{value: revenueAmount}(data);
-        if (address(this).balance != initialBalance - revenueAmount) revert BadClaim();
-
+        if (address(this).balance != initialBalance - revenueAmount) {
+            revert BadClaim();
+        }
         emit Claim(msg.sender, revenueAmount, block.timestamp);
     }
 
@@ -89,7 +92,9 @@ contract Protocol is IProtocol, Pausable, AccessControl {
         return _tariff > 0 ? _tariff : DEFAULT_TARIFF;
     }
 
-    function _ownerOf(uint256 tokenId) internal view returns (address) {
-        return M3TER.ownerOf(tokenId);
+    function m3terAccount(uint256 tokenId) public view returns (address) {
+        return IERC6551Registry(ERC6551REGISTRY).account(
+            ERC6551IMPLEMENTATION, block.chainid, M3TER, tokenId, M3TER_ACCOUNT_SALT
+        );
     }
 }

@@ -2,5 +2,5 @@
 pragma solidity ^0.8.24;
 
 interface ICLM {
-    function claim(bytes calldata data) payable external;
+    function claim(bytes calldata data) external payable;
 }

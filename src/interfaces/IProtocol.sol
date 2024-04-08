@@ -22,7 +22,7 @@ interface IProtocol {
 
     function _setTariff(uint256 tokenId, uint256 tariff) external;
 
-    function pay(uint256 tokenId) payable external;
+    function pay(uint256 tokenId) external payable;
 
     function claim(address CLMAddress, bytes calldata data) external;
 
