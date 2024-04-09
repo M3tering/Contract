@@ -21,11 +21,10 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     bytes32 public constant PAUSER = keccak256("PAUSER");
     bytes32 public constant CURATOR = keccak256("CURATOR");
     bytes32 public constant REGISTRAR = keccak256("REGISTRAR");
-    uint256 public constant TBA_SALT = uint256(keccak256("M3TERS"));
 
     address public constant TBA_IMPLEMENTATION = 0xf52d861E8d057bF7685e5C9462571dFf236249cF;
     address public constant TBA_REGISTRY = 0x000000006551c19487814612e58FE06813775758;
-    address public constant M3TER = 0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C; // TODO: M3ter Address
+    address public constant M3TER = 0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02;
     address public feeAddress;
 
     constructor() {
@@ -93,8 +92,6 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     }
 
     function m3terAccount(uint256 tokenId) public view returns (address) {
-        return IERC6551Registry(ERC6551REGISTRY).account(
-            ERC6551IMPLEMENTATION, block.chainid, M3TER, tokenId, M3TER_ACCOUNT_SALT
-        );
+        return IERC6551Registry(TBA_REGISTRY).account(TBA_IMPLEMENTATION, 0x0, block.chainid, M3TER, tokenId);
     }
 }
