@@ -21,20 +21,20 @@ contract Protocol is IProtocol, Pausable, AccessControl {
     bytes32 public constant PAUSER = keccak256("PAUSER");
     bytes32 public constant CURATOR = keccak256("CURATOR");
     bytes32 public constant REGISTRAR = keccak256("REGISTRAR");
-    uint256 public constant M3TER_ACCOUNT_SALT = uint256(keccak256("M3tering"));
+    uint256 public constant TBA_SALT = uint256(keccak256("M3TERS"));
 
+    address public constant TBA_IMPLEMENTATION = 0xf52d861E8d057bF7685e5C9462571dFf236249cF;
+    address public constant TBA_REGISTRY = 0x000000006551c19487814612e58FE06813775758;
     address public constant M3TER = 0xbCFeFea1e83060DbCEf2Ed0513755D049fDE952C; // TODO: M3ter Address
-    address public constant ERC6551REGISTRY = 0x000000006551c19487814612e58FE06813775758;
-    address public constant ERC6551IMPLEMENTATION = 0xf52d861E8d057bF7685e5C9462571dFf236249cF;
     address public feeAddress;
 
-    constructor(address feeAccount) {
+    constructor() {
         if (address(M3TER) == address(0)) revert ZeroAddress();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(REGISTRAR, msg.sender);
         _grantRole(CURATOR, msg.sender);
         _grantRole(PAUSER, msg.sender);
-        feeAddress = feeAccount;
+        feeAddress = msg.sender;
     }
 
     function _curateModule(address moduleAddress, bool state) external onlyRole(CURATOR) {
