@@ -9,21 +9,20 @@ import {AccessControl} from "@openzeppelin/contracts@5.0.2/access/AccessControl.
 
 /// @custom:security-contact info@whynotswitch.com
 contract Contract is IContract, Pausable, AccessControl {
-    mapping(address => bool) public modules;
-    mapping(uint256 => Tariff) public tariffs;
-    mapping(uint256 => string) public contractByM3ter;
-    mapping(string => uint256) public m3terByContract;
+    mapping(bytes32 => Tariff) public tariffs;
+    mapping(bytes32 => uint256) public tally;
+    mapping(bytes32 => bytes32) public registry;
     mapping(address => uint256) public revenues;
-    mapping(uint256 => uint256) public tally;
+    mapping(address => bool) public modules;
 
-    bytes32 public constant PAUSER = keccak256("PAUSER");
     bytes32 public constant CURATOR = keccak256("CURATOR");
+    bytes32 public constant PAUSER = keccak256("PAUSER");
 
     address public constant M3TER = 0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02; //Todo: set actual contract address
     address public feeAddress;
 
     constructor() {
-        if (address(M3TER) == address(0)) revert ZeroAddress();
+        if (address(M3TER) == address(0)) revert InputIsZero();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(CURATOR, msg.sender);
         _grantRole(PAUSER, msg.sender);
@@ -35,41 +34,23 @@ contract Contract is IContract, Pausable, AccessControl {
     }
 
     function _setFeeAddress(address otherAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (otherAddress == address(0)) revert ZeroAddress();
+        if (otherAddress == address(0)) revert InputIsZero();
         feeAddress = otherAddress;
     }
 
-    function _setTariff(
-        uint256 tokenId,
-        uint256 current,
-        uint256 escalator,
-        uint256 interval,
-        string calldata contractId
-    ) external {
+    function setTariff(bytes32 contractId, uint256 tokenId, uint256 current, uint256 escalator, uint256 interval)
+        external
+    {
         if (current == 0) revert InputIsZero();
-        if (msg.sender != m3terOwner(tokenId)) revert Unauthorized();
-
-        Tariff storage tariff = tariffs[tokenId];
-        if (tariff.lastCheckpoint == 0) revert TariffExits();
-        tariffs[tokenId] = Tariff(current, escalator, interval, block.number);
-        m3terByContract[contractId] = tokenId;
-    }
-
-    function pay(uint256 tokenId) external payable whenNotPaused {
-        uint256 fee = (msg.value * 3) / 1000;
-        revenues[feeAddress] += fee;
-        revenues[m3terOwner(tokenId)] += msg.value - fee;
-
-        Tariff storage tariff = tariffs[tokenId];
-        if (tariff.blockInterval != 0 && tariff.escalator != 0) tryEscalateTariff(tariff);
-        tally[tokenId] += tariff.current * msg.value;
-        emit Payment(tokenId, msg.sender, msg.value, tariff.current, tally[tokenId], block.timestamp);
+        if (tariffs[contractId].lastCheckpoint == 0) revert TariffExits();
+        tariffs[contractId] = Tariff(tokenId, current, escalator, interval, block.number);
+        register(contractId, tokenId);
     }
 
     function claim(address moduleAddress, bytes calldata data) external whenNotPaused {
-        if (modules[moduleAddress] == false) revert BadModule();
         uint256 revenueAmount = revenues[msg.sender];
         if (revenueAmount < 1) revert InputIsZero();
+        if (modules[moduleAddress] == false) revert BadModule();
         revenues[msg.sender] = 0;
 
         uint256 initialBalance = address(this).balance;
@@ -78,12 +59,29 @@ contract Contract is IContract, Pausable, AccessControl {
         emit Claim(msg.sender, moduleAddress, revenueAmount, block.timestamp);
     }
 
-    function pause() public onlyRole(PAUSER) {
-        _pause();
+    function pay(uint256 tokenId) external payable {
+        payContract(registry[bytes32(tokenId)]);
     }
 
-    function unpause() public onlyRole(PAUSER) {
-        _unpause();
+    function payContract(bytes32 contractId) public payable whenNotPaused {
+        Tariff storage tariff = tariffs[contractId];
+        uint256 amount = (msg.value * 997) / 1000;
+        uint256 tokenId = tariff.tokenId;
+
+        if (tariff.blockInterval != 0 && tariff.escalator != 0) tryEscalateTariff(tariff);
+
+        revenues[m3terOwner(tokenId)] += amount;
+        revenues[feeAddress] += msg.value - amount;
+        tally[contractId] += tariff.current * msg.value;
+        emit Payment(contractId, tokenId, msg.sender, msg.value, tariff.current, tally[contractId], block.timestamp);
+    }
+
+    function register(bytes32 contractId, uint256 tokenId) public {
+        uint256 decoded = uint256(registry[contractId]);
+        // reverts if registry contains value that's not attributable to sender (avoid overwrites).
+        if ((msg.sender != m3terOwner(tokenId)) || (decoded != 0 && decoded != tokenId)) revert Unauthorized();
+        registry[contractId] = bytes32(tokenId);
+        registry[bytes32(tokenId)] = contractId;
     }
 
     function m3terOwner(uint256 tokenId) public view returns (address) {
@@ -95,6 +93,14 @@ contract Contract is IContract, Pausable, AccessControl {
         if (!success) revert BadL1SLOAD();
         return abi.decode(result, (uint256));
         */
+    }
+
+    function pause() public onlyRole(PAUSER) {
+        _pause();
+    }
+
+    function unpause() public onlyRole(PAUSER) {
+        _unpause();
     }
 
     function tryEscalateTariff(Tariff storage tariff) internal {
