@@ -22,7 +22,7 @@ contract Contract is IContract, Pausable, AccessControl {
     address public feeAddress;
 
     constructor() {
-        if (address(M3TER) == address(0)) revert InputIsZero();
+        if (address(M3TER) == address(0)) revert CannotBeZero();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(CURATOR, msg.sender);
         _grantRole(PAUSER, msg.sender);
@@ -34,14 +34,14 @@ contract Contract is IContract, Pausable, AccessControl {
     }
 
     function _setFeeAddress(address otherAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (otherAddress == address(0)) revert InputIsZero();
+        if (otherAddress == address(0)) revert CannotBeZero();
         feeAddress = otherAddress;
     }
 
     function setTariff(bytes32 contractId, uint256 tokenId, uint256 current, uint256 escalator, uint256 interval)
         external
     {
-        if (current == 0) revert InputIsZero();
+        if (current == 0) revert CannotBeZero();
         if (tariffs[contractId].lastCheckpoint == 0) revert TariffExits();
         tariffs[contractId] = Tariff(tokenId, current, escalator, interval, block.number);
         register(contractId, tokenId);
@@ -49,7 +49,7 @@ contract Contract is IContract, Pausable, AccessControl {
 
     function claim(address moduleAddress, bytes calldata data) external whenNotPaused {
         uint256 revenueAmount = revenues[msg.sender];
-        if (revenueAmount < 1) revert InputIsZero();
+        if (revenueAmount < 1) revert CannotBeZero();
         if (modules[moduleAddress] == false) revert BadModule();
         revenues[msg.sender] = 0;
 

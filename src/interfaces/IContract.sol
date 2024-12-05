@@ -24,8 +24,8 @@ interface IContract {
 
     error BadClaim();
     error BadModule();
-    error InputIsZero();
     error TariffExits();
+    error CannotBeZero();
     error Unauthorized();
 
     function _curateModule(address CLMAddress, bool state) external;
