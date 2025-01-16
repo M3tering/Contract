@@ -6,31 +6,23 @@ import {IContract} from "./interfaces/IContract.sol";
 import {IERC6551Registry} from "./interfaces/IERC6551Registry.sol";
 import {Pausable} from "@openzeppelin/contracts@5.0.2/utils/Pausable.sol";
 import {IERC20} from "@openzeppelin/contracts@5.0.2/interfaces/IERC20.sol";
-import {IERC721} from "@openzeppelin/contracts@5.0.2/interfaces/IERC721.sol";
 import {AccessControl} from "@openzeppelin/contracts@5.0.2/access/AccessControl.sol";
 
 /// @custom:security-contact info@whynotswitch.com
 contract Contract is IContract, Pausable, AccessControl {
+    address public immutable revenueAsset;
+    bytes32 public constant PAUSER = keccak256("PAUSER");
+    bytes32 public constant CURATOR = keccak256("CURATOR");
     mapping(address => uint256) public revenues;
     mapping(address => bool) public modules;
-
-    bytes32 public constant CURATOR = keccak256("CURATOR");
-    bytes32 public constant PAUSER = keccak256("PAUSER");
-
-    address public constant TBA_IMPLEMENTATION = 0x55266d75D1a14E4572138116aF39863Ed6596E7F;
-    address public constant TBA_REGISTRY = 0x000000006551c19487814612e58FE06813775758;
-    address public constant M3TER = 0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02; //Todo: set actual contract address
-    IERC20 public immutable revenueAsset;
-
     address public feeAddress;
 
     constructor(address _feeAddress, address _revenueAsset) {
-        if (M3TER == address(0)) revert CannotBeZero();
+        if (_feeAddress == address(0) || _revenueAsset == address(0)) revert CannotBeZero();
+        (feeAddress, revenueAsset) = (_feeAddress, _revenueAsset);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(CURATOR, msg.sender);
         _grantRole(PAUSER, msg.sender);
-        feeAddress = _feeAddress;
-        revenueAsset = IERC20(_revenueAsset);
     }
 
     function _curateModule(address moduleAddress, bool state) external onlyRole(CURATOR) {
@@ -55,7 +47,7 @@ contract Contract is IContract, Pausable, AccessControl {
     }
 
     function pay(uint256 tokenId, uint256 amount) external whenNotPaused {
-        if (!revenueAsset.transferFrom(msg.sender, address(this), amount)) revert TransferError();
+        if (!IERC20(revenueAsset).transferFrom(msg.sender, address(this), amount)) revert TransferError();
         uint256 fee = (amount * 3) / 1000;
         revenues[feeAddress] += fee;
         revenues[m3terAccount(tokenId)] += amount - fee;
@@ -71,6 +63,10 @@ contract Contract is IContract, Pausable, AccessControl {
     }
 
     function m3terAccount(uint256 tokenId) public view returns (address) {
-        return IERC6551Registry(TBA_REGISTRY).account(TBA_IMPLEMENTATION, 0x0, 1, M3TER, tokenId);
+        address m3ter = 0x39fb420Bd583cCC8Afd1A1eAce2907fe300ABD02; // ToDo: Set actual contract address
+        address registry = 0x000000006551c19487814612e58FE06813775758; // ERC6551 Registry contract @ v0.3.1
+        address proxyImp = 0x55266d75D1a14E4572138116aF39863Ed6596E7F; // ERC6551 Implementation Proxy @ v0.3.1
+
+        return IERC6551Registry(registry).account(proxyImp, 0x0, 1, m3ter, tokenId);
     }
 }
