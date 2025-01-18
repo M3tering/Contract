@@ -13,16 +13,17 @@ contract Contract is IContract, Pausable, AccessControl {
     address public immutable revenueAsset;
     bytes32 public constant PAUSER = keccak256("PAUSER");
     bytes32 public constant CURATOR = keccak256("CURATOR");
+
     mapping(address => uint256) public revenues;
     mapping(address => bool) public modules;
     address public feeAddress;
 
-    constructor(address _feeAddress, address _revenueAsset) {
-        if (_feeAddress == address(0) || _revenueAsset == address(0)) revert CannotBeZero();
-        (feeAddress, revenueAsset) = (_feeAddress, _revenueAsset);
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(CURATOR, msg.sender);
-        _grantRole(PAUSER, msg.sender);
+    constructor(address asset, address defaultAdmin) {
+        if (asset == address(0) || defaultAdmin == address(0)) revert CannotBeZero();
+        (revenueAsset, feeAddress) = (asset, defaultAdmin);
+        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
+        _grantRole(CURATOR, defaultAdmin);
+        _grantRole(PAUSER, defaultAdmin);
     }
 
     function _curateModule(address moduleAddress, bool state) external onlyRole(CURATOR) {
