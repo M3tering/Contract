@@ -14,8 +14,6 @@ interface IContract {
 
     function _curateModule(address CLMAddress, bool state) external;
 
-    function _setFeeAddress(address otherAddress) external;
-
     function claim(address CLMAddress, bytes calldata data) external;
 
     function pay(uint256 tokenId, uint256 amount) external;

@@ -16,23 +16,17 @@ contract Contract is IContract, Pausable, AccessControl {
 
     mapping(address => uint256) public revenues;
     mapping(address => bool) public modules;
-    address public feeAddress;
 
     constructor(address asset, address defaultAdmin) {
         if (asset == address(0) || defaultAdmin == address(0)) revert CannotBeZero();
-        (revenueAsset, feeAddress) = (asset, defaultAdmin);
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(CURATOR, defaultAdmin);
         _grantRole(PAUSER, defaultAdmin);
+        revenueAsset = asset;
     }
 
     function _curateModule(address moduleAddress, bool state) external onlyRole(CURATOR) {
         modules[moduleAddress] = state;
-    }
-
-    function _setFeeAddress(address otherAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (otherAddress == address(0)) revert CannotBeZero();
-        feeAddress = otherAddress;
     }
 
     function claim(address moduleAddress, bytes calldata data) external whenNotPaused {
@@ -50,7 +44,7 @@ contract Contract is IContract, Pausable, AccessControl {
     function pay(uint256 tokenId, uint256 amount) external whenNotPaused {
         if (!IERC20(revenueAsset).transferFrom(msg.sender, address(this), amount)) revert TransferError();
         uint256 fee = (amount * 3) / 1000;
-        revenues[feeAddress] += fee;
+        revenues[m3terAccount(0)] += fee;
         revenues[m3terAccount(tokenId)] += amount - fee;
         emit Payment(tokenId, msg.sender, amount, block.timestamp);
     }
