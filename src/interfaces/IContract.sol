@@ -7,12 +7,11 @@ interface IContract {
 
     error BadClaim();
     error BadModule();
-    error TariffExits();
     error CannotBeZero();
-    error Unauthorized();
+    error ApprovalError();
     error TransferError();
 
-    function _curateModule(address CLMAddress, bool state) external;
+    function curateModule(address CLMAddress, bool state) external;
 
     function claim(address CLMAddress, bytes calldata data) external;
 

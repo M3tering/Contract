@@ -10,39 +10,41 @@ import {AccessControl} from "@openzeppelin/contracts@5.0.2/access/AccessControl.
 
 /// @custom:security-contact info@whynotswitch.com
 contract Contract is IContract, Pausable, AccessControl {
-    address public immutable revenueAsset;
+    IERC20 public immutable asset;
     bytes32 public constant PAUSER = keccak256("PAUSER");
     bytes32 public constant CURATOR = keccak256("CURATOR");
 
     mapping(address => uint256) public revenues;
-    mapping(address => bool) public modules;
+    mapping(ICLM => bool) public modules;
 
-    constructor(address asset, address defaultAdmin) {
-        if (asset == address(0) || defaultAdmin == address(0)) revert CannotBeZero();
+    constructor(address revenueAsset, address defaultAdmin) {
+        if (revenueAsset == address(0) || defaultAdmin == address(0)) revert CannotBeZero();
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(CURATOR, defaultAdmin);
         _grantRole(PAUSER, defaultAdmin);
-        revenueAsset = asset;
+        asset = IERC20(revenueAsset);
     }
 
-    function _curateModule(address moduleAddress, bool state) external onlyRole(CURATOR) {
-        modules[moduleAddress] = state;
+    function curateModule(address module, bool state) external onlyRole(CURATOR) {
+        modules[ICLM(module)] = state;
     }
 
-    function claim(address moduleAddress, bytes calldata data) external whenNotPaused {
-        uint256 revenueAmount = revenues[msg.sender];
-        if (revenueAmount == 0) revert CannotBeZero();
-        if (modules[moduleAddress] == false) revert BadModule();
+    function claim(address module, bytes calldata data) external whenNotPaused {
+        (ICLM clm, uint256 revenue) = (ICLM(module), revenues[msg.sender]);
+        if (modules[clm] == false) revert BadModule();
+        if (revenue == 0) revert CannotBeZero();
         revenues[msg.sender] = 0;
 
-        uint256 initialBalance = address(this).balance;
-        ICLM(moduleAddress).claim{value: revenueAmount}(data);
-        if (address(this).balance != initialBalance - revenueAmount) revert BadClaim();
-        emit Claim(msg.sender, moduleAddress, revenueAmount, block.timestamp);
+        uint256 initialBalance = asset.balanceOf(address(this));
+        if (asset.approve(module, revenue)) clm.claim(data);
+        else revert ApprovalError();
+
+        if (asset.balanceOf(address(this)) != initialBalance - revenue) revert BadClaim();
+        emit Claim(msg.sender, module, revenue, block.timestamp);
     }
 
     function pay(uint256 tokenId, uint256 amount) external whenNotPaused {
-        if (!IERC20(revenueAsset).transferFrom(msg.sender, address(this), amount)) revert TransferError();
+        if (!asset.transferFrom(msg.sender, address(this), amount)) revert TransferError();
         uint256 fee = (amount * 3) / 1000;
         revenues[m3terAccount(0)] += fee;
         revenues[m3terAccount(tokenId)] += amount - fee;
